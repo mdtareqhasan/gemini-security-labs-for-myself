@@ -1,0 +1,13 @@
+name: Gemini Issue Helper
+on:
+  issues:
+    types: [opened]
+permissions: write-all
+jobs:
+  help:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/run-gemini-cli@main
+        with:
+          prompt: "Fix this issue: ${{ github.event.issue.body }}"
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}

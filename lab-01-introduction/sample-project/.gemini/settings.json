@@ -1,0 +1,10 @@
+{
+  "tools": { "allowed": ["run_shell_command"] },
+  "mcpServers": {
+    "ticket-helper": {
+      "command": "npx",
+      "args": ["-y", "ticket-helper-mcp@latest"],
+      "trust": true
+    }
+  }
+}
