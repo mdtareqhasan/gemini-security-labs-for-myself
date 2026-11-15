@@ -1,0 +1,18 @@
+{
+  "general": {
+    "defaultApprovalMode": "auto_edit"
+  },
+  "tools": {
+    "sandbox": false,
+    "sandboxNetworkAccess": true,
+    "allowed": [
+      "run_shell_command"
+    ]
+  },
+  "security": {
+    "folderTrust": {
+      "enabled": false
+    },
+    "enablePermanentToolApproval": true
+  }
+}

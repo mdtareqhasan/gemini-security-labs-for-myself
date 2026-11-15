@@ -1,0 +1,23 @@
+# Node dependencies
+node_modules/
+
+# Audit reports the tool writes to your home folder
+gemini-audit-reports/
+
+# OS junk files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# Never commit a real .env file
+.env
+
+# ...but keep these two, they hold fake values only and are needed for the labs
+!vulnerable-project/.env
+!workspace/.env
+
+# Lab 05 fixture, created by lab-05-repository-security/make-fixture.sh
+workspace/.git/
+workspace/shared-notes.txt

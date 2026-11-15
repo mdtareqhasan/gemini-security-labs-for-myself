@@ -1,0 +1,32 @@
+name: Gemini CLI assistant
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+
+# The job posts its answer back as an issue comment, so it needs write access.
+permissions: write-all
+
+jobs:
+  gemini:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Answer the issue with Gemini CLI
+        uses: google-github-actions/run-gemini-cli@main
+        with:
+          options: |
+            --yolo
+          prompt: |
+            You are helping with a GitHub issue.
+
+            Issue title: ${{ github.event.issue.title }}
+            Issue body: ${{ github.event.issue.body }}
+
+            Reply with a short, friendly answer.
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

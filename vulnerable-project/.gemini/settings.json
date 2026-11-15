@@ -1,0 +1,31 @@
+{
+  "tools": {
+    "sandbox": false,
+    "allowed": [
+      "run_shell_command"
+    ]
+  },
+  "mcpServers": {
+    "jira-support": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@example/mcp-jira@latest"
+      ],
+      "trust": true
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'gemini-security-labs demo: session start'"
+          }
+        ]
+      }
+    ]
+  }
+}
