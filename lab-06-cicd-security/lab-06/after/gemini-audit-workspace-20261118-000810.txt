@@ -1,0 +1,255 @@
+GEMINI CLI AND CODE ASSIST SECURITY AUDIT REPORT
+================================================
+Generated:      2026-11-17 18:08 UTC
+Project:        workspace
+Host:           linux/macos
+Gemini CLI:     unknown
+Audit version:  1.0.0
+
+Summary: 5 FAIL, 11 WARN, 2 PASS, 3 INFO
+
+WHAT TO FIX (most serious first)
+--------------------------------
+
+1. [FAIL] Folder trust is turned off   (G03, guide step 2)
+     Why:     Folder trust keeps an untrusted folder's .gemini/settings.json, .env file and MCP servers from loading. Turned off, any repository you open configures the agent.
+     Details: Every folder's .gemini/settings.json, .env and MCP servers load without asking.
+     Fix:     Remove "security": { "folderTrust": { "enabled": false } } from ~/.gemini/settings.json. Folder trust keeps an untrusted project's settings, .env and MCP servers from loading.
+     OWASP LLM:      LLM01 Prompt Injection; LLM06 Excessive Agency
+     OWASP Agentic:  ASI01 Agent Goal Hijack; ASI05 Unexpected Code Execution
+     MITRE ATLAS:    AML.T0051.001 LLM Prompt Injection: Indirect; AML.T0010 AI Supply Chain Compromise
+     NIST AI RMF:    MEASURE 2.7; MAP 4.1
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#2-baseline-settings
+     Source:  Gemini CLI docs: Trusted folders: https://geminicli.com/docs/cli/trusted-folders
+
+2. [FAIL] Risky tools bypass confirmation   (G06, guide step 2)
+     Why:     Tools in tools.allowed bypass the confirmation dialog. Tracebit showed an allowed grep chained with a second command that exfiltrated the user's environment variables without asking.
+     Details: run_shell_command
+     Fix:     Remove the listed entries from tools.allowed. Allow only read-only commands, e.g. "run_shell_command(git status)", never the bare run_shell_command or a shell, interpreter, delete or network tool.
+     OWASP LLM:      LLM06 Excessive Agency
+     OWASP Agentic:  ASI02 Tool Misuse; ASI05 Unexpected Code Execution
+     MITRE ATLAS:    AML.T0050 Command and Scripting Interpreter; AML.T0101 Data Destruction via AI Agent Tool Invocation; AML.T0086 Exfiltration via AI Agent Tool Invocation
+     NIST AI RMF:    MANAGE 2.4; MEASURE 2.7
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#2-baseline-settings
+     Source:  Gemini CLI docs: Configuration reference: https://geminicli.com/docs/reference/configuration
+     Source:  Tracebit: code execution through deception in Gemini CLI: https://tracebit.com/blog/code-exec-deception-gemini-ai-cli-hijack
+
+3. [FAIL] The project trusts MCP servers, bypassing every confirmation   (P05, guide step 4)
+     Why:     A repository that marks its own MCP servers as trusted removes every confirmation for their tools.
+     Details: jira-support
+     Fix:     Remove "trust": true from the listed MCP servers. It bypasses every tool call confirmation for that server.
+     OWASP LLM:      LLM03 Supply Chain; LLM06 Excessive Agency
+     OWASP Agentic:  ASI04 Agentic Supply Chain Vulnerabilities; ASI05 Unexpected Code Execution
+     MITRE ATLAS:    AML.T0010.005 AI Supply Chain Compromise: AI Agent Tool; AML.T0053 AI Agent Tool Invocation
+     NIST AI RMF:    GOVERN 6.1; MANAGE 3.1
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#4-repositories-and-extensions
+     Source:  Gemini CLI docs: MCP servers: https://geminicli.com/docs/tools/mcp-server
+
+4. [FAIL] The project .env sets Gemini CLI variables   (P08, guide step 4)
+     Why:     A trusted folder's .env file is loaded into Gemini CLI's environment, and variables such as GEMINI_SANDBOX change how it runs, including turning the sandbox off.
+     Details: GEMINI_SANDBOX
+     Fix:     Remove the listed GEMINI_* variables from the project .env. A trusted folder's .env can turn the sandbox off.
+     OWASP LLM:      LLM03 Supply Chain; LLM06 Excessive Agency
+     OWASP Agentic:  ASI04 Agentic Supply Chain Vulnerabilities; ASI05 Unexpected Code Execution
+     MITRE ATLAS:    AML.T0010 AI Supply Chain Compromise; AML.T0081 Modify AI Agent Configuration
+     NIST AI RMF:    GOVERN 6.1; MANAGE 3.1
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#4-repositories-and-extensions
+     Source:  Gemini CLI docs: Trusted folders: https://geminicli.com/docs/cli/trusted-folders
+     Source:  Gemini CLI docs: Sandboxing: https://geminicli.com/docs/cli/sandbox
+
+5. [FAIL] Context files contain hidden Unicode characters   (P10, guide step 4)
+     Why:     Zero-width and bidirectional control characters hide instructions from people while the model still reads them (the "Rules File Backdoor" technique).
+     Details: GEMINI.md
+     Fix:     Open the listed files in an editor that shows invisible characters (or run: grep -nP "[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{FEFF}]" <file>) and remove the hidden characters.
+     OWASP LLM:      LLM01 Prompt Injection
+     OWASP Agentic:  ASI01 Agent Goal Hijack; ASI06 Memory & Context Poisoning
+     MITRE ATLAS:    AML.T0051.001 LLM Prompt Injection: Indirect; AML.T0080 AI Agent Context Poisoning
+     NIST AI RMF:    MAP 4.1; MEASURE 2.7
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#4-repositories-and-extensions
+     Source:  Pillar Security: Rules File Backdoor: https://www.pillar.security/blog/new-vulnerability-in-github-copilot-and-cursor-how-hackers-can-weaponize-code-agents
+
+6. [WARN] Sandboxing is off (the default)   (G02, guide step 2)
+     Why:     "Sandboxing is disabled by default." Without it, shell commands and file edits run with your full user permissions.
+     Details: Shell commands and file edits run with your full user permissions.
+     Fix:     Turn on sandboxing: set "tools": { "sandbox": true } (or "docker" / "podman") or "security": { "toolSandboxing": true } in ~/.gemini/settings.json.
+     OWASP LLM:      LLM06 Excessive Agency
+     OWASP Agentic:  ASI02 Tool Misuse; ASI05 Unexpected Code Execution
+     MITRE ATLAS:    AML.T0050 Command and Scripting Interpreter; AML.T0053 AI Agent Tool Invocation
+     NIST AI RMF:    MEASURE 2.7; MAP 4.2
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#2-baseline-settings
+     Source:  Gemini CLI docs: Sandboxing: https://geminicli.com/docs/cli/sandbox
+
+7. [WARN] File edits are approved automatically by default   (G05, guide step 2)
+     Why:     auto_edit approves every file edit without asking, including edits to settings and context files the agent then loads.
+     Details: general.defaultApprovalMode is auto_edit.
+     Fix:     Set "general": { "defaultApprovalMode": "default" } so edits ask first; use auto_edit only for a session that needs it.
+     OWASP LLM:      LLM06 Excessive Agency
+     OWASP Agentic:  ASI05 Unexpected Code Execution; ASI06 Memory & Context Poisoning
+     MITRE ATLAS:    AML.T0081 Modify AI Agent Configuration
+     NIST AI RMF:    MANAGE 2.4
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#2-baseline-settings
+     Source:  Gemini CLI docs: Configuration reference: https://geminicli.com/docs/reference/configuration
+
+8. [WARN] The sandbox allows network access   (G07, guide step 2)
+     Why:     With network access in the sandbox, a sandboxed command can still send data anywhere.
+     Details: tools.sandboxNetworkAccess is true.
+     Fix:     Set "tools": { "sandboxNetworkAccess": false }, the default, unless a task needs the network.
+     OWASP LLM:      LLM02 Sensitive Information Disclosure; LLM06 Excessive Agency
+     OWASP Agentic:  ASI02 Tool Misuse
+     MITRE ATLAS:    AML.T0086 Exfiltration via AI Agent Tool Invocation; AML.T0025 Exfiltration via Cyber Means
+     NIST AI RMF:    MEASURE 2.10
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#2-baseline-settings
+     Source:  Gemini CLI docs: Configuration reference: https://geminicli.com/docs/reference/configuration
+     Source:  Gemini CLI docs: Sandboxing: https://geminicli.com/docs/cli/sandbox
+
+9. [WARN] Tool approvals can last across sessions   (G08, guide step 2)
+     Why:     "Allow for all future sessions" makes an approval outlive the task it was given for.
+     Details: security.enablePermanentToolApproval is true.
+     Fix:     Remove "security": { "enablePermanentToolApproval": true } so approvals don't outlive the session.
+     OWASP LLM:      LLM06 Excessive Agency
+     OWASP Agentic:  ASI02 Tool Misuse; ASI09 Human-Agent Trust Exploitation
+     MITRE ATLAS:    AML.T0053 AI Agent Tool Invocation
+     NIST AI RMF:    MANAGE 2.4
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#2-baseline-settings
+     Source:  Gemini CLI docs: Configuration reference: https://geminicli.com/docs/reference/configuration
+
+10. [WARN] The project's .gemini/settings.json changes your protections   (P01, guide step 4)
+     Why:     A trusted folder's .gemini/settings.json overrides your user settings, so a repository can turn the sandbox off or allow tools for everyone who trusts it.
+     Details: tools.sandbox = false
+     Details: tools.allowed: run_shell_command
+     Fix:     Do not trust this folder until you have removed the listed settings from .gemini/settings.json. A repository should never lower your sandbox or approvals.
+     OWASP LLM:      LLM03 Supply Chain; LLM06 Excessive Agency
+     OWASP Agentic:  ASI04 Agentic Supply Chain Vulnerabilities; ASI05 Unexpected Code Execution
+     MITRE ATLAS:    AML.T0010 AI Supply Chain Compromise; AML.T0081 Modify AI Agent Configuration; AML.T0053 AI Agent Tool Invocation
+     NIST AI RMF:    GOVERN 6.1; MANAGE 3.1
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#4-repositories-and-extensions
+     Source:  Gemini CLI docs: Configuration reference: https://geminicli.com/docs/reference/configuration
+     Source:  Gemini CLI docs: Trusted folders: https://geminicli.com/docs/cli/trusted-folders
+
+11. [WARN] .gemini/settings.json declares MCP servers   (P02, guide step 4)
+     Why:     Project MCP servers start as local processes with your permissions once you trust the folder.
+     Details: jira-support: npx -y @example/mcp-jira@latest
+     Fix:     Read every MCP server in .gemini/settings.json before trusting the folder. Remove servers you do not recognise, or open the repository in a container with no credentials.
+     OWASP LLM:      LLM03 Supply Chain; LLM06 Excessive Agency
+     OWASP Agentic:  ASI04 Agentic Supply Chain Vulnerabilities; ASI05 Unexpected Code Execution
+     MITRE ATLAS:    AML.T0010.005 AI Supply Chain Compromise: AI Agent Tool; AML.T0011.002 User Execution: Poisoned AI Agent Tool
+     NIST AI RMF:    GOVERN 6.1; MANAGE 3.1
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#4-repositories-and-extensions
+     Source:  Gemini CLI docs: MCP servers: https://geminicli.com/docs/tools/mcp-server
+     Source:  Gemini CLI docs: Trusted folders: https://geminicli.com/docs/cli/trusted-folders
+
+12. [WARN] .gemini/settings.json adds MCP servers that read outsider-written content   (P03, guide step 4)
+     Why:     A project that wires servers reading outsider-written content into the agent gives outsiders a way to send it instructions.
+     Details: jira-support
+     Fix:     Treat everything these servers return as untrusted input: give them read-only credentials, keep confirmations on for their tools, and never let the agent run commands copied from tickets, errors or messages.
+     OWASP LLM:      LLM01 Prompt Injection
+     OWASP Agentic:  ASI01 Agent Goal Hijack; ASI02 Tool Misuse
+     MITRE ATLAS:    AML.T0051.001 LLM Prompt Injection: Indirect; AML.T0099 AI Agent Tool Data Poisoning
+     NIST AI RMF:    MANAGE 3.1
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#4-repositories-and-extensions
+     Source:  The Hacker News: Agentjacking (Jun 2026): https://thehackernews.com/2026/06/agentjacking-attack-tricks-ai-coding.html
+
+13. [WARN] .gemini/settings.json runs MCP servers without a pinned version   (P04, guide step 4)
+     Why:     An unpinned project MCP server runs whatever version its registry serves, for everyone who opens the repository.
+     Details: jira-support
+     Fix:     Pin every MCP server to an exact version, e.g. "some-server@1.4.2" instead of "some-server" or "@latest".
+     OWASP LLM:      LLM03 Supply Chain
+     OWASP Agentic:  ASI04 Agentic Supply Chain Vulnerabilities
+     MITRE ATLAS:    AML.T0010.005 AI Supply Chain Compromise: AI Agent Tool; AML.T0109 AI Supply Chain Rug Pull
+     NIST AI RMF:    GOVERN 6.1
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#4-repositories-and-extensions
+     Source:  Gemini CLI docs: MCP servers: https://geminicli.com/docs/tools/mcp-server
+
+14. [WARN] The project ships hooks   (P06, guide step 4)
+     Why:     Project hooks run commands on agent events for everyone who trusts the folder.
+     Details: echo 'gemini-security-labs demo: session start'
+     Fix:     Read the project's hooks before trusting the folder: they run commands on agent events. Remove hooks you did not write.
+     OWASP LLM:      LLM03 Supply Chain
+     OWASP Agentic:  ASI04 Agentic Supply Chain Vulnerabilities; ASI05 Unexpected Code Execution
+     MITRE ATLAS:    AML.T0081 Modify AI Agent Configuration; AML.T0010 AI Supply Chain Compromise
+     NIST AI RMF:    GOVERN 6.1; MANAGE 3.1
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#4-repositories-and-extensions
+     Source:  Gemini CLI docs: Hooks: https://geminicli.com/docs/hooks
+
+15. [WARN] Context files tell the agent to fetch or install something   (P09, guide step 4)
+     Why:     GEMINI.md and AGENTS.md files are loaded as instructions. A repository can use them for persistent prompt injection; Tracebit hid one in a file presented as a licence.
+     Details: GEMINI.md
+     Fix:     Read the listed context files before trusting this repository. Remove fetch or install instructions you did not add.
+     OWASP LLM:      LLM01 Prompt Injection
+     OWASP Agentic:  ASI01 Agent Goal Hijack; ASI06 Memory & Context Poisoning
+     MITRE ATLAS:    AML.T0051.001 LLM Prompt Injection: Indirect; AML.T0080 AI Agent Context Poisoning
+     NIST AI RMF:    MAP 4.1
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#4-repositories-and-extensions
+     Source:  Gemini CLI docs: GEMINI.md context files: https://geminicli.com/docs/cli/gemini-md
+     Source:  Tracebit: code execution through deception in Gemini CLI: https://tracebit.com/blog/code-exec-deception-gemini-ai-cli-hijack
+
+16. [WARN] .env files are not covered by .gitignore   (P12, guide step 5)
+     Why:     .env files hold API keys and connection strings. If they are not ignored by git, one "commit everything" publishes them.
+     Details: .env
+     Details: They can be committed by accident.
+     Fix:     Add these lines to the project's .gitignore: .env and .env.* (and remove any !.env exception). If a .env file is already committed, remove it with git rm --cached <file> and rotate the secrets it held.
+     OWASP LLM:      LLM02 Sensitive Information Disclosure
+     OWASP Agentic:  ASI03 Identity & Privilege Abuse
+     MITRE ATLAS:    AML.T0055 Unsecured Credentials
+     NIST AI RMF:    MEASURE 2.10
+     Guide:   https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#5-working-habits
+     Source:  Gemini CLI docs: Trusted folders: https://geminicli.com/docs/cli/trusted-folders
+
+FRAMEWORK COVERAGE OF FINDINGS
+------------------------------
+Which framework risks your FAIL / WARN findings relate to (fails, warns, check IDs).
+
+OWASP Top 10 for LLM Applications (2025)
+  LLM06 Excessive Agency: 4 FAIL, 6 WARN  [G02, G03, G05, G06, G07, G08, P01, P02, P05, P08]
+  LLM03 Supply Chain: 2 FAIL, 4 WARN  [P01, P02, P04, P05, P06, P08]
+  LLM01 Prompt Injection: 2 FAIL, 2 WARN  [G03, P03, P09, P10]
+  LLM02 Sensitive Information Disclosure: 0 FAIL, 2 WARN  [G07, P12]
+
+OWASP Top 10 for Agentic Applications (2026)
+  ASI05 Unexpected Code Execution: 4 FAIL, 5 WARN  [G02, G03, G05, G06, P01, P02, P05, P06, P08]
+  ASI04 Agentic Supply Chain Vulnerabilities: 2 FAIL, 4 WARN  [P01, P02, P04, P05, P06, P08]
+  ASI01 Agent Goal Hijack: 2 FAIL, 2 WARN  [G03, P03, P09, P10]
+  ASI02 Tool Misuse: 1 FAIL, 4 WARN  [G02, G06, G07, G08, P03]
+  ASI06 Memory & Context Poisoning: 1 FAIL, 2 WARN  [G05, P09, P10]
+  ASI03 Identity & Privilege Abuse: 0 FAIL, 1 WARN  [P12]
+  ASI09 Human-Agent Trust Exploitation: 0 FAIL, 1 WARN  [G08]
+
+MITRE ATLAS (2026.09)
+  AML.T0010 AI Supply Chain Compromise: 2 FAIL, 2 WARN  [G03, P01, P06, P08]
+  AML.T0051.001 LLM Prompt Injection: Indirect: 2 FAIL, 2 WARN  [G03, P03, P09, P10]
+  AML.T0053 AI Agent Tool Invocation: 1 FAIL, 3 WARN  [G02, G08, P01, P05]
+  AML.T0081 Modify AI Agent Configuration: 1 FAIL, 3 WARN  [G05, P01, P06, P08]
+  AML.T0010.005 AI Supply Chain Compromise: AI Agent Tool: 1 FAIL, 2 WARN  [P02, P04, P05]
+  AML.T0050 Command and Scripting Interpreter: 1 FAIL, 1 WARN  [G02, G06]
+  AML.T0080 AI Agent Context Poisoning: 1 FAIL, 1 WARN  [P09, P10]
+  AML.T0086 Exfiltration via AI Agent Tool Invocation: 1 FAIL, 1 WARN  [G06, G07]
+  AML.T0101 Data Destruction via AI Agent Tool Invocation: 1 FAIL, 0 WARN  [G06]
+  AML.T0011.002 User Execution: Poisoned AI Agent Tool: 0 FAIL, 1 WARN  [P02]
+  AML.T0025 Exfiltration via Cyber Means: 0 FAIL, 1 WARN  [G07]
+  AML.T0055 Unsecured Credentials: 0 FAIL, 1 WARN  [P12]
+  AML.T0099 AI Agent Tool Data Poisoning: 0 FAIL, 1 WARN  [P03]
+  AML.T0109 AI Supply Chain Rug Pull: 0 FAIL, 1 WARN  [P04]
+
+NIST AI Risk Management Framework (1.0)
+  MEASURE 2.7 AI system security and resilience, as identified in the MAP functio...: 3 FAIL, 1 WARN  [G02, G03, G06, P10]
+  GOVERN 6.1 Policies and procedures are in place that address AI risks associat...: 2 FAIL, 4 WARN  [P01, P02, P04, P05, P06, P08]
+  MANAGE 3.1 AI risks and benefits from third-party resources are regularly moni...: 2 FAIL, 4 WARN  [P01, P02, P03, P05, P06, P08]
+  MAP 4.1 Approaches for mapping AI technology and legal risks of its compone...: 2 FAIL, 1 WARN  [G03, P09, P10]
+  MANAGE 2.4 Mechanisms are in place and applied, responsibilities are assigned ...: 1 FAIL, 2 WARN  [G05, G06, G08]
+  MEASURE 2.10 Privacy risk of the AI system, as identified in the MAP function, i...: 0 FAIL, 2 WARN  [G07, P12]
+  MAP 4.2 Internal risk controls for components of the AI system including th...: 0 FAIL, 1 WARN  [G02]
+
+PASSED AND INFORMATIONAL
+------------------------
+[INFO] Gemini CLI version not provided
+[INFO] YOLO mode can be turned on with --yolo
+[INFO] Any extension can be installed from Git
+[PASS] ~/.gemini/settings.json is readable
+[PASS] No risky aliases in shell startup files
+
+Framework mappings are AISecurityLabs.org's interpretation, verified against
+OWASP LLM Top 10 2025, OWASP Agentic Top 10 2026, MITRE ATLAS 2026.09 and
+NIST AI RMF 1.0. They are not endorsed by the framework owners.
+
+This audit reads configuration only. To prove the controls work in a live
+session, run the self-test: https://github.com/aisecuritylabs-org/coding-agent-security/blob/main/gemini/README.md#6-self-test
